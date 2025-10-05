@@ -37,7 +37,7 @@ Commit `requirements.txt` to the repo.
 
 #### 3) Deadline
 
-**Due:** **15 Oct 2025, 23:59**
+**Due:** **16 Oct 2025, 23:59**
 The **last commit** must be **no later** than this timestamp.
 
 ---

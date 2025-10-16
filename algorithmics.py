@@ -1,3 +1,4 @@
+from collections import deque
 from typing import List, Dict
 from graph_abc import Graph
 
@@ -15,8 +16,6 @@ class GraphAlgorithms:
     @staticmethod
     def bfs(graph: Graph, start: int) -> List[int]:
         """
-        TODO: Breadth-First Search (BFS) starting from vertex start.
-
         Implementation steps:
             1) Validate start: ensure 0 <= start < graph.vertices.
                Raise IndexError if invalid.
@@ -41,7 +40,24 @@ class GraphAlgorithms:
             - Mark vertices as visited at the time of enqueueing,
               not when dequeued — this avoids duplicates.
         """
-        raise NotImplementedError("BFS: implement me")
+        n = graph.vertices
+        if not (0 <= start < n):
+            raise IndexError("start vertex out of range")
+
+        adj = graph.get_adjacency_list()
+        visited = [False] * n
+        order = []
+        q = deque([start])
+        visited[start] = True
+
+        while q:
+            u = q.popleft()
+            order.append(u)
+            for v, i in adj[u]:
+                if not visited[v]:
+                    visited[v] = True
+                    q.append(v)
+        return order
 
     @staticmethod
     def dfs(graph: Graph, start: int) -> List[int]:
@@ -70,13 +86,27 @@ class GraphAlgorithms:
             - In the iterative version, the order of adding neighbors to the stack
               affects determinism.
         """
-        raise NotImplementedError("DFS: implement me")
+        n = graph.vertices
+        if not (0 <= start < n):
+            raise IndexError("start vertex out of range")
+
+        adj = graph.get_adjacency_list()
+        visited = [False] * n
+        order = []
+
+        def dfs_visit(u: int):
+            visited[u] = True
+            order.append(u)
+            for v, i in adj[u]:
+                if not visited[v]:
+                    dfs_visit(v)
+
+        dfs_visit(start)
+        return order
 
     @staticmethod
     def connected_components(graph: Graph) -> List[List[int]]:
         """
-        TODO: Find connected components.
-
         Implementation steps:
             1) Get adjacency list: adj = graph.get_adjacency_list().
             2) If the graph is undirected:
@@ -103,7 +133,40 @@ class GraphAlgorithms:
             - For directed graphs, build a temporary dict[int, List[int]]
               with symmetric edges, then perform BFS/DFS over it.
         """
-        raise NotImplementedError("Connected components: implement me")
+        n = graph.vertices
+        adj = graph.get_adjacency_list()
+
+        # Build undirected adjacency for directed graph
+        if graph.directed:
+            undirected_adj = {i: set() for i in range(n)}
+            for u in range(n):
+                for v, _ in adj[u]:
+                    undirected_adj[u].add(v)
+                    undirected_adj[v].add(u)
+            adj = {u: [(v, 1.0) for v in sorted(neighbors)] for u, neighbors in undirected_adj.items()}
+
+        visited = [False] * n
+        components = []
+
+        def dfs_collect(u: int, comp: List[int]):
+            visited[u] = True
+            comp.append(u)
+            for v, i in adj[u]:
+                if not visited[v]:
+                    dfs_collect(v, comp)
+
+        for v in range(n):
+            if not visited[v]:
+                comp = []
+                visited[u] = True
+                comp.append(u)
+                for v, i in adj[u]:
+                    if not visited[v]:
+                        dfs_collect(v, comp)
+                components.append(sorted(comp))
+
+        components.sort(key=lambda c: c[0]) # sort by smallest vertex
+        return components
 
     @staticmethod
     def components_with_stats(graph: Graph) -> List[Dict[str, object]]:
@@ -146,4 +209,40 @@ class GraphAlgorithms:
             - For undirected graphs, use u < v (or a set of pairs) to avoid
               double-counting edges.
         """
-        raise NotImplementedError("Components with stats: implement me")
+        comps = GraphAlgorithms.connected_components(graph)
+        adj = graph.get_adjacency_list()
+
+        # Map vertex to component index
+        v2c = {}
+        for i, comp in enumerate(comps):
+            for v in comp:
+                v2c[v] = i
+
+        comp_edges = [0] * len(comps)
+
+        if graph.directed:
+            for u in range(graph.vertices):
+                for v, _ in adj[u]:
+                    if v2c[u] == v2c[v]:
+                        comp_edges[v2c[u]] += 1
+        else:
+            counted = set()
+            for u in range(graph.vertices):
+                for v, i in adj[u]:
+                    if v2c[u] == v2c[v]:
+                        e = tuple(sorted((u, v)))
+                        if e not in counted:
+                            counted.add(e)
+                            comp_edges[v2c[u]] += 1
+
+        stats = []
+        for i, comp in enumerate(comps):
+            stats.append({
+                "vertices": comp,
+                "node_count": len(comp),
+                "edge_count": comp_edges[i],
+                "smallest_vertex": comp[0]
+            })
+
+        stats.sort(key=lambda s: (-s["node_count"], -s["edge_count"], s["smallest_vertex"])) # let's sort it by components and size
+        return stats

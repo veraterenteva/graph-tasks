@@ -54,6 +54,7 @@ class Graph(ABC):
 
     def get_adjacency_list(self) -> Dict[int, List[Tuple[int, float]]]:
         """Return the graph as an adjacency list: {v: [(u, weight), ...], ...}.
+        Return deep-copied and sorted adjacency list.
 
         Returns:
             Dict[int, List[Tuple[int, float]]]: a copy of the adjacency list where
@@ -62,29 +63,33 @@ class Graph(ABC):
         Hints:
             - Build a new dict with new lists of (u, weight) pairs.
             - Sort neighbors by u (and by weight if needed).
-
-        TODO:
-            - Implement deep copy construction and sorting of neighbors by vertex id.
         """
-        raise NotImplementedError("Adjacency list: implement me")
+        adj_copy: Dict[int, List[Tuple[int, float]]] = {}
+        for v, neighbors in self._adjacency_list.items():
+            sorted_neighbors = sorted(neighbors, key=lambda x: x[0])
+            adj_copy[v] = [(u, w) for u, w in sorted_neighbors]
+        return adj_copy
 
 
     def get_adjacency_matrix(self) -> List[List[float]]:
         """Return the adjacency matrix of size n x n (n = number of vertices).
+        Return n×n adjacency matrix (weighted/unweighted)
 
         Returns:
             List[List[float]]: square matrix representation.
-
-        TODO:
-            - Implement adjacency matrix construction considering:
-                * weighted/unweighted modes
-                * no self-loops
         """
-        raise NotImplementedError("Adjacency matrix: implement me")
+
+        n = self.vertices
+        matrix = [[0.0 for _ in range(n)] for _ in range(n)]
+        for u, neighbors in self._adjacency_list.items():
+            for v, w in neighbors:
+                matrix[u][v] = float(w) if self.weighted else 1.0
+        return matrix
 
 
     def get_incidence_matrix(self) -> List[List[int]]:
         """Return the incidence matrix of size n x m (n = vertices, m = edges).
+        Return incidence matrix (n × m).
 
         Column formation rules (each column corresponds to one edge):
             - Directed graph: for edge (u -> v):
@@ -99,8 +104,30 @@ class Graph(ABC):
 
         Returns:
             List[List[int]]: incidence matrix of size n x m
-
-        TODO:
-            - Implement incidence matrix construction following all rules above.
         """
-        raise NotImplementedError("Incidence matrix: implement me")
+        n = self.vertices
+        edges = []
+        if self.directed:
+            for u in range(n):
+                for v, i in sorted(self._adjacency_list[u], key=lambda x: (u, x[0])): # neighbour order for table
+                    edges.append((u, v))
+        else:
+            seen = set()
+            for u in range(n):
+                for v, i in self._adjacency_list[u]:
+                    if u < v and (u, v) not in seen and (v, u) not in seen:
+                        edges.append((u, v))
+                        seen.add((u, v))
+            edges.sort(key=lambda e: (min(e), max(e))) # we treat undirected edges and sort (u, v) and (v, u) like the same
+
+
+        m = len(edges)
+        matrix = [[0 for i in range(m)] for i in range(n)]
+        for idx, (u, v) in enumerate(edges):
+            if self.directed:
+                matrix[u][idx] = -1
+                matrix[v][idx] = 1
+            else:
+                matrix[u][idx] = 1
+                matrix[v][idx] = 1
+        return matrix
